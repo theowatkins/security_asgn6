@@ -19,10 +19,10 @@ class User:
         else:
             self.p = pgPair[0]
             self.g = pgPair[1]
-        self.name = name
-        self.shared = {}
-        self.private = random.randrange(self.p)
-        self.public = pow(self.g, self.private, self.p)
+        self.name = name # A string to identify yourself to others
+        self.shared = {} # A dictionary of shared keys. The {key:value} pairs are {name:key shared with that user}
+        self.private = random.randrange(self.p) # your randomly selected p value (In theory would be differnet for each connection with another user)
+        self.public = pow(self.g, self.private, self.p) # your randomly selected g value (In theory would be differnet for each connection with another user) 
     
     # Send out your own p & g pair. Assumed to be used when self generated p and g, 
     # and is establishing connection with other
@@ -38,13 +38,18 @@ class User:
         s= pow(otherPub[1], self.private, self.p)
         self.shared[otherPub[0]] = SHA256.new(intToBytes(s)).digest()[:16]
 
+    # Send a message to the designated receiver by encrypting it with the shared key
     def sendMessage(self, receiver: str, message: str):
         aesBlock = AES.new(self.shared[receiver], AES.MODE_ECB)     # How to do this with CBC?
         return (aesBlock.encrypt(padTo16(bytes(message, "utf8"))), self.name)
 
+    # Recieve a message by decrypting it using the key shared with the user that sent it
     def receiveMessage(self, incoming: (bytes, str)):
-        aesBlock = AES.new(self.shared[incoming[1]], AES.MODE_ECB)  # How to do this with CBC?
-        print(trimPad(aesBlock.decrypt(incoming[0])))
+        try:
+            aesBlock = AES.new(self.shared[incoming[1]], AES.MODE_ECB)  # How to do this with CBC?
+            print(trimPad(aesBlock.decrypt(incoming[0])))
+        except:
+            print("No connection established with the user who sent this message")
 
     def __repr__ (self):
         return ("Name: " + self.name +
@@ -66,6 +71,7 @@ def bitsToBytes(bitStr):
         retBytes.append(int(bitStr[i:i+8], 2))
     return retBytes
 
+# Convert an integer to a bytearray object for the sake of encryption with AES
 def intToBytes(num: int):
     return bitsToBytes(intToBits(num))
 
@@ -87,6 +93,7 @@ def padTo16(message):
      ret += pad
      return ret
 
+# Identify and trim any padding from a plaintext message
 def trimPad(message):
      end = message[-1]
      if (end < 16 and makePad(end) == message[(len(message) - end):]):
@@ -94,7 +101,9 @@ def trimPad(message):
      else:
           return message
 
+# Run a simple Diffie-Helman Key Exchange example scenario
 def simpleDiffieHelman():
+    # Initialize two users, Alice and Bob
     alice = User("Alice", (37, 5))  # remove second argument to generate own p and g
     bob = User("Bob", alice.sendPG())
 
@@ -103,6 +112,7 @@ def simpleDiffieHelman():
     # Bob sends public key to Alice, Alice computes the shared key
     alice.compShared(bob.sendPub())
 
+    # Alice sends a secret message to Bob, Bob receives and decrypts it
     bob.receiveMessage(alice.sendMessage("Bob", "Hello Bob!"))
 
 def main(argv):
