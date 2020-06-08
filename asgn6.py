@@ -12,18 +12,20 @@ from Cryptodome.Cipher import AES
 
 class User:
     def __init__ (self, name: str):
-        self.pgPairs = {} # A dictionary to hold p-g pairs for lines of communication
         self.name = name # A string to identify yourself to others
-        self.shared = {} # A dictionary of shared keys. The {key:value} pairs are {name:key shared with that user}
-        self.private = {} # random.randrange(self.p) # your randomly selected p value (In theory would be differnet for each connection with another user)
-        self.public = {} #pow(self.g, self.private, self.p) # your randomly selected g value (In theory would be differnet for each connection with another user) 
+        # All dictionaries below have keys of another user tied to 
+        #   communication data for that user
+        self.pgPairs = {} # A dictionary to hold p-g pairs
+        self.shared = {} # A dictionary of shared keys
+        self.private = {} # your randomly selected private value
+        self.public = {} # your calculated public value
     
     # Generate a p-g pair and send it out with your name
     # and is establishing connection with other
     # If a connection was previously established with other, it is overwritten
     def initiateContact(self, other: str, pgVals: (int, int) = None):
         if (pgVals is None):
-            elGam: ElGamal.ElGamalKey = ElGamal.generate(256, RandBytes) # In practice would be much larger, but takes a long time to run
+            elGam: ElGamal.ElGamalKey = ElGamal.generate(256, RandBytes) # Would be larger p in practice
             p: int = int(elGam.p)
             g: int = int(elGam.g)
         else:
@@ -50,24 +52,24 @@ class User:
 
     # Simlulate a malicous actor intercepting a contact initiation
     # Attempts in vain to establish  valid connections with both the 
-    #   sender and receiver to intercept messages between the two
+    #   sender and receiver to eavesdrop on messages between the two
     def maliciousReceiver(self, contactInfo):
         p = contactInfo[0][0]
         g = contactInfo[0][1]
         sender = contactInfo[1]
         intendedTarget = contactInfo[2]
         self.pgPairs[sender] = contactInfo[0]
-        self.private[sender] = random.randrange(p) # This is why intercepting is pointless
+        self.private[sender] = random.randrange(p) # This is why eavesdropping is pointless
         self.public[sender] = pow(g, self.private[sender], p)
         self.pgPairs[intendedTarget] = contactInfo[0]
-        self.private[intendedTarget] = random.randrange(p)  # This is why intercepting is pointless
+        self.private[intendedTarget] = random.randrange(p)  # This is why eavesdropping is pointless
         self.public[intendedTarget] = pow(g, self.private[sender], p)
 
-    # Send out your own name and public key to other
+    # Send out your own name and public value to other
     def sendPub(self, other):
         return (self.name, self.public[other])
 
-    # Accept a public key from other, compute the shared key
+    # Accept a public value from other, compute the shared key
     def computeShared(self, senderPublic: (str, int)):
         sender = senderPublic[0]
         s = pow(senderPublic[1], self.private[sender], self.pgPairs[sender][0])
@@ -75,13 +77,15 @@ class User:
 
     # Send a message to the designated receiver by encrypting it with the shared key
     def sendMessage(self, receiver: str, message: str):
-        aesBlock = AES.new((self.shared[receiver])[:16], AES.MODE_CBC, (self.shared[receiver])[-16:])     # Need a shared IV, just use last 16 of shared key I guess?
+        # Uee firt 16 bytes of shared key as key for AES, use last 16 as the IV (?)
+        aesBlock = AES.new((self.shared[receiver])[:16], AES.MODE_CBC, (self.shared[receiver])[-16:]) 
         return (aesBlock.encrypt(padTo16(bytes(message, "utf8"))), self.name)
 
     # Recieve a message by decrypting it using the key shared with the user that sent it
     def receiveMessage(self, incoming: (bytes, str)):
         try:
-            aesBlock = AES.new((self.shared[incoming[1]])[:16], AES.MODE_CBC, (self.shared[incoming[1]])[-16:])  # See same issue in sendMessage
+            # Uee firt 16 bytes of shared key as key for AES, use last 16 as the IV (?)
+            aesBlock = AES.new((self.shared[incoming[1]])[:16], AES.MODE_CBC, (self.shared[incoming[1]])[-16:])
             try:
                 return(trimPad(aesBlock.decrypt(incoming[0])).decode("utf8"))
             except:
