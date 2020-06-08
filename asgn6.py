@@ -4,6 +4,7 @@
 
 import sys
 from Cryptodome.Util import number as UtilNum
+from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import ElGamal
 from Cryptodome.Random import get_random_bytes as RandBytes
 from Cryptodome.Random import random
@@ -25,9 +26,9 @@ class User:
     # If a connection was previously established with other, it is overwritten
     def initiateContact(self, other: str, pgVals: (int, int) = None):
         if (pgVals is None):
-            elGam: ElGamal.ElGamalKey = ElGamal.generate(256, RandBytes) # Would be larger p in practice
-            p: int = int(elGam.p)
-            g: int = int(elGam.g)
+            elGam = ElGamal.generate(256, RandBytes) # Would be larger p in practice
+            p = int(elGam.p)
+            g = int(elGam.g)
         else:
             p = pgVals[0]
             g = pgVals[1]
@@ -79,15 +80,15 @@ class User:
     def sendMessage(self, receiver: str, message: str):
         # Uee firt 16 bytes of shared key as key for AES, use last 16 as the IV (?)
         aesBlock = AES.new((self.shared[receiver])[:16], AES.MODE_CBC, (self.shared[receiver])[-16:]) 
-        return (aesBlock.encrypt(padTo16(bytes(message, "utf8"))), self.name)
+        return (aesBlock.encrypt(pad(bytes(message, "utf8"), 16, style="pkcs7")), self.name)
 
     # Recieve a message by decrypting it using the key shared with the user that sent it
     def receiveMessage(self, incoming: (bytes, str)):
         try:
-            # Uee firt 16 bytes of shared key as key for AES, use last 16 as the IV (?)
+            # Use firt 16 bytes of shared key as key for AES, use last 16 as the IV (?)
             aesBlock = AES.new((self.shared[incoming[1]])[:16], AES.MODE_CBC, (self.shared[incoming[1]])[-16:])
             try:
-                return(trimPad(aesBlock.decrypt(incoming[0])).decode("utf8"))
+                return(unpad(aesBlock.decrypt(incoming[0]), 16, style="pkcs7").decode("utf8"))
             except:
                 return("<Indecipherable Garbage>")
         except:
@@ -115,35 +116,6 @@ def bitsToBytes(bitStr):
 # Convert an integer to a bytearray object for the sake of encryption with AES
 def intToBytes(num: int):
     return bitsToBytes(intToBits(num))
-
-# generates a pad of n bytes following PKCS#7 padding
-def makePad(n):
-     padStr = ""
-     i = 0
-     while i < n:
-          padStr += chr(n)
-          i += 1
-     pad = bytes(padStr, "utf8")
-     return pad
-
-# pads a message length to be divisible by 16
-def padTo16(message):
-    ret = message
-    inLen = len(message)
-    while (inLen > 16):
-        inLen -= 16
-    padSize = 16 - inLen
-    pad = makePad(padSize)
-    ret += pad
-    return ret
-
-# Identify and trim any padding from a plaintext message
-def trimPad(message):
-     end = message[-1]
-     if (end < 16 and makePad(end) == message[(len(message) - end):]):
-          return message[:(len(message) - end)]
-     else:
-          return message
 
 def nl(f):
     f.write("\n")
