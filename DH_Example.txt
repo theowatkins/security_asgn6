@@ -2,19 +2,19 @@
 Alice and Bob's conversation:
 Hello Bob!
 Hey Alice, what's up?
-Let's plan a suprise for Eve
+Let's plan a suprise for Mallory
 
-What Eve sees:
-<Indecipherable Garbage>
-<Indecipherable Garbage>
-<Indecipherable Garbage>
+What Mallory sees:
+Hello Bob!
+Hey Alice, what's up?
+Let's plan a suprise for Mallory
 
-Now Bob wants to talk to Eve
-Bob and Eve's conversation:
-Hello Eve!
+Now Bob wants to talk to Mallory
+Bob and Mallory's conversation:
+Hello Mallory!
 Hey Bob, what's up?
 Want to come over later?
 
 And Bob and Alice can still talk:
-Hey Alice, I got Eve to come over later, she doesn't suspect anything
+Hey Alice, I got Mallory to come over later, she doesn't suspect anything
 Cool!
