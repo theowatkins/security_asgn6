@@ -1,0 +1,20 @@
+
+Alice and Bob's conversation:
+Hello Bob!
+Hey Alice, what's up?
+Let's plan a suprise for Eve
+
+What Eve sees:
+<Indecipherable Garbage>
+<Indecipherable Garbage>
+<Indecipherable Garbage>
+
+Now Bob wants to talk to Eve
+Bob and Eve's conversation:
+Hello Eve!
+Hey Bob, what's up?
+Want to come over later?
+
+And Bob and Alice can still talk:
+Hey Alice, I got Eve to come over later, she doesn't suspect anything
+Cool!

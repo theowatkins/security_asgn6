@@ -20,6 +20,7 @@ class User:
     
     # Generate a p-g pair and send it out with your name
     # and is establishing connection with other
+    # If a connection was previously established with other, it is overwritten
     def initiateContact(self, other: str, pgVals: (int, int) = None):
         if (pgVals is None):
             elGam: ElGamal.ElGamalKey = ElGamal.generate(256, RandBytes) # In practice would be much larger, but takes a long time to run
@@ -33,6 +34,9 @@ class User:
         self.public[other] = pow(g, self.private[other], p)
         return ((p, g), self.name, other)
 
+    # Receive a contact initiation from a sender
+    # Initilize communication values
+    # If a connection was previously established with sender, it is overwritten
     def receiveContact(self, contactInfo):
         if (self.name == contactInfo[2]):
             p = contactInfo[0][0]
@@ -44,6 +48,9 @@ class User:
         else:
             print("They aren't trying to talk to me, that's ok!")
 
+    # Simlulate a malicous actor intercepting a contact initiation
+    # Attempts in vain to establish  valid connections with both the 
+    #   sender and receiver to intercept messages between the two
     def maliciousReceiver(self, contactInfo):
         p = contactInfo[0][0]
         g = contactInfo[0][1]
@@ -76,18 +83,18 @@ class User:
         try:
             aesBlock = AES.new((self.shared[incoming[1]])[:16], AES.MODE_CBC, (self.shared[incoming[1]])[-16:])  # See same issue in sendMessage
             try:
-                print(trimPad(aesBlock.decrypt(incoming[0])).decode("utf8"))
+                return(trimPad(aesBlock.decrypt(incoming[0])).decode("utf8"))
             except:
-                print("<Indecipherable Garbage>")
+                return("<Indecipherable Garbage>")
         except:
-            print("No connection established with the user who sent this message")
+            return("No connection established with the user who sent this message")
 
     def __repr__ (self):
         return ("Name: " + self.name +
-                "\npgVals: " + str(self.pgPairs) + 
-                "\nprivate: " + str(self.private) + 
-                "\npublic: " + str(self.public) + 
-                "\nshared: " + str(self.shared))
+                "\npgVals w/: " + str(self.pgPairs.keys()) + 
+                "\nprivate w/: " + str(self.private.keys()) + 
+                "\npublic w/: " + str(self.public.keys()) + 
+                "\nshared w/: " + str(self.shared.keys()))
 
 # convert an integer to a string of bits representing the equivalent binary
 def intToBits(i):
@@ -134,6 +141,9 @@ def trimPad(message):
      else:
           return message
 
+def nl(f):
+    f.write("\n")
+
 # Run a simple Diffie-Helman Key Exchange example scenario
 def simpleDiffieHelman():
     # Initialize users Alice, Bob, and Eve
@@ -162,24 +172,50 @@ def simpleDiffieHelman():
     eve.computeShared(alicePub)
     eve.computeShared(bobPub)
 
-    # Alice and Bob start talking in secret
-    print("\nAlice and Bob's conversation:\n")
-    bob.receiveMessage(alice.sendMessage("Bob", "Hello Bob!"))
-    alice.receiveMessage(bob.sendMessage("Alice", "Hey Alice, what's up?"))
-    bob.receiveMessage(alice.sendMessage("Bob", "Even though Eve can intercept our messages she can't read them because we shared a key with DH Key Exchange"))
-    print("\nWhat Eve sees:\n")
-    eve.receiveMessage(alice.sendMessage("Bob", "Hello Bob!"))
-    eve.receiveMessage(bob.sendMessage("Alice", "Hey Alice, what's up?"))
-    eve.receiveMessage(alice.sendMessage("Bob", "Even though Eve can intercept our messages she can't read them because we shared a key with DH Key Exchange"))
-    # THe key lists of ALice, Bob, and Eve
-    print("\n==========================\n")
-    print(alice)
-    print("\n==========================\n")
-    print(bob)
-    print("\n==========================\n")
-    print(eve)
-    print("\n==========================")
+    out = open("DH_Example.txt", "w")
 
+    # Alice and Bob start talking in secret
+    out.write("\nAlice and Bob's conversation:\n")
+    m1 = alice.sendMessage("Bob", "Hello Bob!")
+    m2 = bob.sendMessage("Alice", "Hey Alice, what's up?")
+    m3 = alice.sendMessage("Bob", "Let's plan a suprise for Eve")
+    out.write(bob.receiveMessage(m1))
+    nl(out)
+    out.write(alice.receiveMessage(m2))
+    nl(out)
+    out.write(bob.receiveMessage(m3))
+    nl(out)
+    out.write("\nWhat Eve sees:\n")
+    out.write(eve.receiveMessage(m1))
+    nl(out)
+    out.write(eve.receiveMessage(m2))
+    nl(out)
+    out.write(eve.receiveMessage(m3))
+    nl(out)
+
+    out.write("\nNow Bob wants to talk to Eve")
+
+    newConvo = bob.initiateContact("Eve")
+    eve.receiveContact(newConvo)
+    evePub = eve.sendPub("Bob")
+    bobPub = bob.sendPub("Eve")
+    eve.computeShared(bobPub)
+    bob.computeShared(evePub)
+
+    out.write("\nBob and Eve's conversation:\n")
+    out.write(eve.receiveMessage(bob.sendMessage("Eve", "Hello Eve!")))
+    nl(out)
+    out.write(bob.receiveMessage(eve.sendMessage("Bob", "Hey Bob, what's up?")))
+    nl(out)
+    out.write(eve.receiveMessage(bob.sendMessage("Eve", "Want to come over later?")))
+    nl(out)
+
+    out.write("\nAnd Bob and Alice can still talk:\n")
+    out.write(alice.receiveMessage(bob.sendMessage("Alice", "Hey Alice, I got Eve to come over later, she doesn't suspect anything")))
+    nl(out)
+    out.write(bob.receiveMessage(alice.sendMessage("Bob", "Cool!")))
+
+    out.close()
 
 def main(argv):
     simpleDiffieHelman()
